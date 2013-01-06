@@ -476,8 +476,9 @@ EOT;
 
         /* The Migration reference Function */
         $reference = $this->migration_reference($table_event, $table_action, $table_name, $args);
+        $down = Template::func('down');
 
-        Content::add_after('{', $reference);
+        Content::add_after('{', $reference . $down);
 
         return $this->prettify();
     }
@@ -486,17 +487,28 @@ EOT;
     protected function migration_reference($table_event, $table_action, $table_name, $args)
     {
         $up = Template::func('up');
+        $str = '';
+        if (count($args[0]) > 0) {
+            $references = $args[0];
+            if (is_array($references[0])) {
+                foreach ($references as $reference) {
+	                $ref = Template::schema('table', $reference["reference_table_name"]);
+// 	                $ref = $this->add_after('{', Template::schema('table', $reference["reference_table_name"]), $ref);
+	                // Insert a new schema function into the up function.
 
-        // Insert a new schema function into the up function.
-        $up = $this->add_after('{', Template::schema('table', $table_name), $up);
+	                // Create the field rules for for the schema
+	                if ( $table_event === 'create' ) {
+	                    $fields = $this->add_columns_references($reference);
+	                }
 
-        // Create the field rules for for the schema
-        if ( $table_event === 'create' ) {
-            $fields = $this->add_columns_references($args);
+	                // Insert the fields into the schema function
+	                $str .= $this->add_after('function($table) {', $fields, $ref) . "\n";
+                }
+
+            }
         }
-
-        // Insert the fields into the schema function
-        return $this->add_after('function($table) {', $fields, $up);
+        $str = sprintf("public function up(){%s}", $str);
+        return $str;
     }
 
     protected function migration_up($table_event, $table_action, $table_name, $args)
@@ -773,14 +785,16 @@ EOT;
 
     protected function add_columns_references($args)
     {
-        if (is_array($args[0]) && count($args[0] > 0)) {
-	        return sprintf("\$table->foreign('%s')->references('id')->on('%s')->on_delete('%s')->on_update('%s');",
-	                $args[0]["reference_column_name"],
-	                $args[0]["reference_table_name"],
-	                $args[0]["reference_delete_rule"],
-	                $args[0]["reference_update_rule"]
-                );
-        }
+        $reference = $args;
+        $result = '';
+        $result .= sprintf("\$table->foreign('%s')->references('%s')->on('%s')->on_delete('%s')->on_update('%s');\n",
+	                    	$reference["reference_column_name"],
+	                    	$reference["column_name"],
+		                    $reference["table_name"],
+		                    $reference["reference_delete_rule"],
+		                    $reference["reference_update_rule"]
+	            	);
+        return $result;
     }
 
 

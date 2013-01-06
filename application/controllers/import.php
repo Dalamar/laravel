@@ -9,7 +9,7 @@ class Import_Controller extends Base_Controller {
         $database = 'projecttables';
         $host = 'localhost';
         $username = 'postgres';
-        $password = '3728';
+        $password = '';
         $schema = 'public';
 
         $options = array(
